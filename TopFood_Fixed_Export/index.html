@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Primary Meta -->
+    <title>Top Food – Burger & More | الخليل</title>
+    <meta name="description" content="اطلب أحلى برجر في الخليل أونلاين – توصيل سريع، وجبات طازجة، والدفع عند الاستلام. Top Food – Burger & More" />
+    <meta name="keywords" content="برجر, طعام, توصيل, الخليل, فلسطين, وجبات, Top Food" />
+    <meta name="author" content="Top Food" />
+    
+    <!-- Theme -->
+    <meta name="theme-color" content="#F5C518" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Top Food" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://topfood.ps/" />
+    <meta property="og:title" content="Top Food – Burger & More | الخليل" />
+    <meta property="og:description" content="اطلب أحلى برجر في الخليل أونلاين – توصيل سريع وطازج" />
+    <meta property="og:image" content="/icons/icon-512.png" />
+    <meta property="og:locale" content="ar_PS" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Top Food – Burger & More | الخليل" />
+    <meta name="twitter:description" content="اطلب أحلى برجر في الخليل أونلاين" />
+    <meta name="twitter:image" content="/icons/icon-512.png" />
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    
+    <!-- Preconnect Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

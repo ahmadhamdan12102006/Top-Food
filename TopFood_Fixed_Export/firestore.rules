@@ -1,0 +1,266 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserRole() {
+      return isAuthenticated() && currentUserDoc().exists()
+        ? currentUserDoc().data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && currentUserRole() == 'admin';
+    }
+
+    function isDriver() {
+      return isAuthenticated() && currentUserRole() == 'driver';
+    }
+
+    function isCustomer() {
+      return isAuthenticated() && currentUserRole() == 'customer';
+    }
+
+    function isVerifiedPhoneOwner(resourceData) {
+      return isAuthenticated()
+        && request.auth.token.phone_number is string
+        && (
+          (
+            resourceData.phoneSearch is list
+            && request.auth.token.phone_number in resourceData.phoneSearch
+          )
+          || (
+            resourceData.phone is string
+            && resourceData.phone == request.auth.token.phone_number
+          )
+        );
+    }
+
+    function isValidOrderStatus(status) {
+      return status in ['pending', 'preparing', 'ready_for_pickup', 'on_the_way', 'delivered', 'cancelled'];
+    }
+
+    function isValidFulfillmentType(type) {
+      return type in ['delivery', 'pickup'];
+    }
+
+    function isValidOrderCreateData() {
+      return request.resource.data.keys().hasAll([
+        'id',
+        'orderNumber',
+        'userId',
+        'isGuest',
+        'items',
+        'status',
+        'deliveryAddress',
+        'subtotal',
+        'deliveryFee',
+        'total',
+        'createdAt',
+        'updatedAt',
+        'customerName',
+        'customerPhone',
+        'deliveryArea',
+        'fulfillmentType'
+      ])
+      && request.resource.data.id == request.resource.id
+      && request.resource.data.orderNumber is string
+      && request.resource.data.isGuest is bool
+      && request.resource.data.items is list
+      && request.resource.data.status is string
+      && isValidOrderStatus(request.resource.data.status)
+      && request.resource.data.subtotal is number
+      && request.resource.data.deliveryFee is number
+      && request.resource.data.total is number
+      && request.resource.data.customerName is string
+      && request.resource.data.customerPhone is string
+      && request.resource.data.deliveryArea is string
+      && request.resource.data.fulfillmentType is string
+      && isValidFulfillmentType(request.resource.data.fulfillmentType)
+      && (
+        (
+          request.resource.data.fulfillmentType == 'pickup' &&
+          request.resource.data.deliveryAddress == null
+        ) ||
+        (
+          request.resource.data.fulfillmentType == 'delivery' &&
+          request.resource.data.deliveryAddress is map
+        )
+      )
+      && (
+        (
+          request.resource.data.isGuest == true &&
+          request.resource.data.userId == null
+        ) ||
+        (
+          request.resource.data.isGuest == false &&
+          isAuthenticated() &&
+          request.resource.data.userId == request.auth.uid
+        )
+      );
+    }
+
+    function isValidOrderRead(resourceData) {
+      return isAdmin()
+        || (
+          isDriver() &&
+          (
+            resourceData.assignedDriverId == null ||
+            resourceData.assignedDriverId == request.auth.uid
+          )
+        )
+        || (
+          isAuthenticated() &&
+          resourceData.userId == request.auth.uid
+        );
+    }
+
+    function isValidOrderCustomerUpdate() {
+      return isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.orderNumber == resource.data.orderNumber
+        && request.resource.data.items == resource.data.items
+        && request.resource.data.total == resource.data.total
+        && request.resource.data.subtotal == resource.data.subtotal
+        && request.resource.data.deliveryFee == resource.data.deliveryFee
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function isValidOrderDriverUpdate() {
+      return isDriver()
+        && (
+          resource.data.assignedDriverId == null ||
+          resource.data.assignedDriverId == request.auth.uid ||
+          request.resource.data.assignedDriverId == request.auth.uid
+        )
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.orderNumber == resource.data.orderNumber
+        && request.resource.data.items == resource.data.items
+        && request.resource.data.total == resource.data.total
+        && request.resource.data.subtotal == resource.data.subtotal
+        && request.resource.data.deliveryFee == resource.data.deliveryFee
+        && request.resource.data.createdAt == resource.data.createdAt
+        && isValidOrderStatus(request.resource.data.status);
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || isAdmin() || isVerifiedPhoneOwner(resource.data)
+      );
+
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'reviewCount'])
+      );
+    }
+
+    match /inventory/{itemId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+
+    match /siteSettings/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isAdmin() || isDriver();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['averageRating', 'totalRatings'])
+      );
+    }
+
+    match /orders/{orderId} {
+      allow read: if isValidOrderRead(resource.data);
+
+      allow create: if isValidOrderCreateData();
+
+      allow update: if isAdmin()
+        || isValidOrderDriverUpdate()
+        || isValidOrderCustomerUpdate();
+
+      allow delete: if isAdmin();
+    }
+
+    match /feedback_requests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update: if isAdmin();
+      allow update: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid 
+        && request.resource.data.status == 'completed'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAtServer']);
+      allow delete: if isAdmin();
+    }
+
+    match /customer_feedback/{feedbackId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /expenses/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /loans/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /dailyReports/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /invoices/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
