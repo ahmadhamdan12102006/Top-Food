@@ -59,7 +59,7 @@ const AdminLayout: React.FC = () => {
   React.useEffect(() => {
     const ordersRef = collection(db, 'orders');
     const q = query(ordersRef, where('status', '==', 'pending'));
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPendingOrdersCount(snapshot.size);
     });
@@ -283,7 +283,7 @@ const AdminLayout: React.FC = () => {
             exit={{ y: 100, opacity: 0 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-lg"
           >
-            <div 
+            <div
               onClick={() => navigate('/admin/orders')}
               className="bg-black/90 dark:bg-white/95 backdrop-blur-xl rounded-[28px] p-4 flex items-center justify-between shadow-2xl border border-white/10 dark:border-black/5 cursor-pointer group hover:scale-[1.02] transition-all"
             >
