@@ -433,7 +433,7 @@ function App() {
   useOrderNotifications();
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/Top-Food">
       <AuthModal />
       <InstallBanner />
       <Toaster
